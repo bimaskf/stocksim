@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Oil Stock Simulator (Monthly)</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: #0f172a;
+      color: #e5e7eb;
+    }
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.5rem;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 1.8rem;
+      text-align: center;
+      color: #f9fafb;
+    }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr);
+      gap: 1.25rem;
+    }
+    .panel {
+      background: #020617;
+      border-radius: 1rem;
+      padding: 1rem 1.2rem;
+      border: 1px solid #1e293b;
+      box-shadow: 0 18px 40px rgba(15,23,42,0.6);
+    }
+    .panel h2 {
+      margin-top: 0;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: #e5e7eb;
+    }
+    .section-title {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #9ca3af;
+      margin-top: 0.5rem;
+      margin-bottom: 0.35rem;
+    }
+    .field-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+      flex-wrap: wrap;
+    }
+    label {
+      font-size: 0.8rem;
+      color: #cbd5f5;
+      min-width: 130px;
+    }
+    input[type="number"], textarea, select {
+      background: #020617;
+      border-radius: 0.5rem;
+      padding: 0.35rem 0.5rem;
+      border: 1px solid #1f2937;
+      color: #e5e7eb;
+      font-size: 0.8rem;
+      width: 120px;
+    }
+    input[type="number"]:focus,
+    textarea:focus,
+    select:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 1px rgba(59,130,246,0.4);
+    }
+    input[type="range"] {
+      flex: 1;
+    }
+    textarea {
+      width: 100%;
+      min-height: 80px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.75rem;
+      line-height: 1.4;
+    }
+    small {
+      font-size: 0.7rem;
+      color: #9ca3af;
+    }
+    .radio-group {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+    }
+    .radio-group label {
+      min-width: auto;
+    }
+    .stats {
+      font-size: 0.78rem;
+      margin-top: 0.35rem;
+      color: #e5e7eb;
+      background: #020617;
+      border-radius: 0.5rem;
+      border: 1px solid #1e293b;
+      padding: 0.4rem 0.5rem;
+    }
+    .stats span {
+      display: inline-block;
+      margin-right: 0.75rem;
+    }
+    button {
+      background: linear-gradient(135deg, #3b82f6, #22c55e);
+      color: #0b1120;
+      border: none;
+      border-radius: 999px;
+      padding: 0.4rem 0.9rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 0.35rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      box-shadow: 0 10px 25px rgba(34,197,94,0.45);
+    }
+    button:hover {
+      filter: brightness(1.05);
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: 0 6px 18px rgba(34,197,94,0.4);
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+      background: rgba(15,118,110,0.2);
+      border: 1px solid rgba(45,212,191,0.4);
+      font-size: 0.7rem;
+      color: #a5f3fc;
+      margin-bottom: 0.5rem;
+    }
+    .pill span {
+      font-weight: 600;
+    }
+    .chart-container {
+      position: relative;
+      height: 380px;
+    }
+    .legend-note {
+      font-size: 0.7rem;
+      color: #9ca3af;
+      margin-top: 0.3rem;
+    }
+    .error {
+      color: #fca5a5;
+      font-size: 0.75rem;
+      margin-top: 0.2rem;
+    }
+    @media (max-width: 900px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Oil Stock Simulator – Monthly Forecast</h1>
+
+    <div class="layout">
+      <!-- LEFT: INPUTS -->
+      <div class="panel">
+        <div class="pill">
+          <span>Stock(t) = Stock(t-1) + Production(t) − Lifting(t)</span>
+        </div>
+
+        <div class="section-title">Time range</div>
+        <div class="field-row">
+          <label for="daysInMonth">Days in month</label>
+          <input type="range" id="daysInMonthRange" min="28" max="31" value="30" />
+          <input type="number" id="daysInMonth" min="28" max="31" value="30" />
+        </div>
+
+        <div class="section-title">Initial stock (start of day 1)</div>
+        <div class="field-row">
+          <label for="initialStock">Initial stock (bbl)</label>
+          <input type="range" id="initialStockRange" min="0" max="5000000" step="500" value="100000" />
+          <input type="number" id="initialStock" min="0" max="5000000" step="100" value="100000" />
+        </div>
+        <small>Stock range: 0 – 200,000 bbl.</small>
+
+        <div class="section-title">Lifting schedule</div>
+        <label for="liftingSchedule">Planned liftings (date/day + volume)</label>
+        <textarea id="liftingSchedule" placeholder="One lifting per line. Examples:
+5, 50000
+10 30000
+25,70000
+&#10;Use day-number within the month. Invalid lines are ignored."></textarea>
+        <small>Format: &lt;day&gt; &lt;volume bbl&gt; (comma or space separated). Day is 1 … days in month.</small>
+        <div id="liftingError" class="error"></div>
+
+        <div class="section-title">Production uncertainty</div>
+        <div class="radio-group">
+          <label><input type="radio" name="prodMode" value="historical" checked /> From historical daily rates</label>
+          <label><input type="radio" name="prodMode" value="direct" /> Direct average &amp; σ</label>
+        </div>
+
+        <div id="prodHistoricalBlock">
+          <label for="historicalProd">Historical daily production (bopd)</label>
+          <textarea id="historicalProd" placeholder="Paste daily production, one number per line, e.g.:
+145000
+147500
+143800
+..."></textarea>
+          <div class="stats" id="histStats">
+            <span>Avg: <strong><span id="histAvg">–</span> bopd</strong></span>
+            <span>Std dev: <strong><span id="histStd">–</span> bopd</strong></span>
+            <span>n: <strong><span id="histCount">0</span> days</strong></span>
+          </div>
+        </div>
+
+        <div id="prodDirectBlock" style="display:none; margin-top:0.5rem;">
+          <div class="field-row">
+            <label for="prodAvg">Avg production (bopd)</label>
+            <input type="range" id="prodAvgRange" min="0" max="170000" step="100" value="140000" />
+            <input type="number" id="prodAvg" min="0" max="170000" step="100" value="140000" />
+          </div>
+          <div class="field-row">
+            <label for="prodStd">Std dev (bopd)</label>
+            <input type="range" id="prodStdRange" min="0" max="50000" step="100" value="5000" />
+            <input type="number" id="prodStd" min="0" max="50000" step="100" value="5000" />
+          </div>
+          <small>Production range: 0 – 170,000 bopd. σ controls volatility.</small>
+        </div>
+
+        <div class="section-title">Simulation settings</div>
+        <div class="field-row">
+          <label for="paths">Simulation paths</label>
+          <input type="range" id="pathsRange" min="100" max="2000" step="50" value="500" />
+          <input type="number" id="paths" min="100" max="2000" step="50" value="500" />
+        </div>
+        <small>More paths = smoother probabilities but heavier compute.</small>
+
+        <div style="margin-top:0.7rem;">
+          <button id="runBtn" type="button">
+            ▶ Run simulation now
+          </button>
+          <small style="display:block;margin-top:0.3rem;">Charts auto-update when you change parameters (debounced).</small>
+        </div>
+        <div id="globalError" class="error"></div>
+      </div>
+
+      <!-- RIGHT: CHART -->
+      <div class="panel">
+        <h2>Stock Level Probability – Daily Over the Month</h2>
+        <div class="chart-container">
+          <canvas id="stockChart"></canvas>
+        </div>
+        <div class="legend-note">
+          Each day shows multiple lines across simulations:
+          <br />
+          • P10 (low) – 10% of simulations are below this stock level.<br />
+          • P50 (median) – half of simulations above, half below.<br />
+          • P90 (high) – 90% of simulations are below this level.<br />
+          • Mean – arithmetic average of all simulated stock levels.
+        </div>
+        <div class="stats" style="margin-top:0.6rem;">
+          <span>Daily stock clamped to <strong>0 – 5,000,000 bbl</strong>.</span>
+          <span>Production clamped to <strong>0 – 170,000 bopd</strong>.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Utility: connect range + number input pairs
+    function bindRangeAndNumber(rangeId, numberId) {
+      const range = document.getElementById(rangeId);
+      const number = document.getElementById(numberId);
+      if (!range || !number) return;
+
+      range.addEventListener('input', () => {
+        number.value = range.value;
+        scheduleSimulation();
+      });
+      number.addEventListener('input', () => {
+        let v = parseFloat(number.value);
+        if (isNaN(v)) v = 0;
+        if (v < parseFloat(range.min)) v = parseFloat(range.min);
+        if (v > parseFloat(range.max)) v = parseFloat(range.max);
+        number.value = v;
+        range.value = v;
+        scheduleSimulation();
+      });
+    }
+
+    // Parse lifting schedule textarea into { dayNumber: volume }
+    function parseLiftingSchedule(daysInMonth) {
+      const text = document.getElementById('liftingSchedule').value;
+      const errorDiv = document.getElementById('liftingError');
+      errorDiv.textContent = '';
+      const lifts = {};
+      if (!text.trim()) return lifts;
+
+      const lines = text.split(/\r?\n/);
+      let invalidLines = 0;
+
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        const parts = line.split(/[,;\s]+/).filter(Boolean);
+        if (parts.length < 2) {
+          invalidLines++;
+          continue;
+        }
+        const day = parseInt(parts[0], 10);
+        const vol = parseFloat(parts[1]);
+        if (!Number.isFinite(day) || !Number.isFinite(vol) || day < 1 || day > daysInMonth || vol < 0) {
+          invalidLines++;
+          continue;
+        }
+        if (!lifts[day]) lifts[day] = 0;
+        lifts[day] += vol;
+      }
+
+      if (invalidLines > 0) {
+        errorDiv.textContent = invalidLines + ' line(s) could not be parsed and were ignored.';
+      }
+
+      return lifts;
+    }
+
+    // Parse historical production lines into array of numbers
+    function parseHistoricalProduction() {
+      const text = document.getElementById('historicalProd').value;
+      const values = [];
+      if (!text.trim()) return values;
+
+      const lines = text.split(/\r?\n/);
+      for (let line of lines) {
+        line = line.trim();
+        if (!line) continue;
+        const v = parseFloat(line.replace(/,/g, ''));
+        if (Number.isFinite(v)) values.push(v);
+      }
+      return values;
+    }
+
+    function meanAndStd(values) {
+      const n = values.length;
+      if (!n) return { mean: NaN, std: NaN };
+      const mean = values.reduce((a, b) => a + b, 0) / n;
+      if (n === 1) return { mean, std: 0 };
+      let variance = 0;
+      for (const v of values) {
+        const d = v - mean;
+        variance += d * d;
+      }
+      variance /= (n - 1);
+      return { mean, std: Math.sqrt(variance) };
+    }
+
+    // Percentile (0..1) with linear interpolation
+    function percentile(values, p) {
+      if (!values.length) return NaN;
+      const sorted = values.slice().sort((a, b) => a - b);
+      const idx = (sorted.length - 1) * p;
+      const lower = Math.floor(idx);
+      const upper = Math.ceil(idx);
+      if (lower === upper) return sorted[lower];
+      const w = idx - lower;
+      return sorted[lower] * (1 - w) + sorted[upper] * w;
+    }
+
+    // Normal random via Box-Muller
+    function randn() {
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    let stockChart = null;
+    let simTimeout = null;
+
+    function initChart() {
+      const ctx = document.getElementById('stockChart').getContext('2d');
+      stockChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'P10 (low)',
+              data: [],
+              borderWidth: 1.5,
+              tension: 0.25,
+            },
+            {
+              label: 'P50 (median)',
+              data: [],
+              borderWidth: 2.2,
+              tension: 0.25,
+            },
+            {
+              label: 'Mean',
+              data: [],
+              borderDash: [6, 4],
+              borderWidth: 1.5,
+              tension: 0.25,
+            },
+            {
+              label: 'P90 (high)',
+              data: [],
+              borderWidth: 1.5,
+              tension: 0.25,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: 'Day of month',
+                color: '#9ca3af',
+              },
+              ticks: {
+                color: '#9ca3af',
+              },
+              grid: {
+                color: 'rgba(148,163,184,0.1)',
+              },
+            },
+            y: {
+              title: {
+                display: true,
+                text: 'Stock (bbl)',
+                color: '#9ca3af',
+              },
+              ticks: {
+                color: '#9ca3af',
+              },
+              grid: {
+                color: 'rgba(148,163,184,0.08)',
+              },
+              suggestedMin: 0,
+              suggestedMax: 1000,
+            },
+          },
+          plugins: {
+            legend: {
+              labels: {
+                color: '#e5e7eb',
+                font: { size: 11 },
+              },
+            },
+            tooltip: {
+              callbacks: {
+                label: function (ctx) {
+                  const v = ctx.parsed.y;
+                  return ctx.dataset.label + ': ' + (Number.isFinite(v) ? v.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' bbl' : '–');
+                },
+              },
+            },
+          },
+        },
+      });
+    }
+
+    function scheduleSimulation() {
+      // debounce slightly to avoid firing on every keystroke too aggressively
+      if (simTimeout) clearTimeout(simTimeout);
+      simTimeout = setTimeout(runSimulation, 250);
+    }
+
+    function runSimulation() {
+      const globalError = document.getElementById('globalError');
+      globalError.textContent = '';
+
+      const days = Math.round(Number(document.getElementById('daysInMonth').value) || 30);
+      const initStockRaw = Number(document.getElementById('initialStock').value);
+      let initStock = isNaN(initStockRaw) ? 0 : initStockRaw;
+      initStock = Math.max(0, Math.min(5000000, initStock));
+
+      let paths = Math.round(Number(document.getElementById('paths').value) || 500);
+      if (paths < 50) paths = 50;
+      if (paths > 5000) paths = 5000;
+
+      const liftsByDay = parseLiftingSchedule(days);
+
+      // production params
+      const prodMode = document.querySelector('input[name="prodMode"]:checked').value;
+
+      let muProd, sigmaProd;
+
+      if (prodMode === 'historical') {
+        const values = parseHistoricalProduction();
+        const { mean, std } = meanAndStd(values);
+        document.getElementById('histCount').textContent = values.length;
+        document.getElementById('histAvg').textContent = Number.isFinite(mean) ? mean.toFixed(0) : '–';
+        document.getElementById('histStd').textContent = Number.isFinite(std) ? std.toFixed(0) : '–';
+
+        if (!values.length || !Number.isFinite(mean)) {
+          globalError.textContent = 'Please input at least one valid historical daily production value, or switch to "Direct average & σ".';
+          return;
+        }
+        muProd = mean;
+        sigmaProd = std || 0; // allow zero-vol if only one point
+      } else {
+        const avgVal = Number(document.getElementById('prodAvg').value);
+        const stdVal = Number(document.getElementById('prodStd').value);
+        muProd = isNaN(avgVal) ? 0 : avgVal;
+        sigmaProd = isNaN(stdVal) ? 0 : stdVal;
+      }
+
+      // clamp production stats to allowed range
+      muProd = Math.max(0, Math.min(170000, muProd));
+      sigmaProd = Math.max(0, Math.min(50000, sigmaProd));
+      if (!Number.isFinite(muProd) || muProd <= 0) {
+        globalError.textContent = 'Average production must be a positive number.';
+        return;
+      }
+
+      // Simulation ranges
+      const stockMin = 0;
+      const stockMax = 5000000;
+      const prodMin = 0;
+      const prodMax = 170000;
+
+      // stocks[dayIndex][pathIndex]
+      const stocks = Array.from({ length: days }, () => new Array(paths));
+
+      for (let p = 0; p < paths; p++) {
+        let stock = initStock;
+        for (let d = 0; d < days; d++) {
+          let prod = muProd + sigmaProd * randn();
+          if (prod < prodMin) prod = prodMin;
+          if (prod > prodMax) prod = prodMax;
+
+          const lifting = liftsByDay[d + 1] || 0;
+          stock = stock + prod - lifting;
+          if (stock < stockMin) stock = stockMin;
+          if (stock > stockMax) stock = stockMax;
+
+          stocks[d][p] = stock;
+        }
+      }
+
+      // Compute per-day stats
+      const labels = [];
+      const p10 = [];
+      const p50 = [];
+      const p90 = [];
+      const meanArr = [];
+
+      for (let d = 0; d < days; d++) {
+        const vals = stocks[d];
+        labels.push('Day ' + (d + 1));
+        if (!vals.length) {
+          p10.push(NaN);
+          p50.push(NaN);
+          p90.push(NaN);
+          meanArr.push(NaN);
+        } else {
+          p10.push(percentile(vals, 0.1));
+          p50.push(percentile(vals, 0.5));
+          p90.push(percentile(vals, 0.9));
+          const m = vals.reduce((a, b) => a + b, 0) / vals.length;
+          meanArr.push(m);
+        }
+      }
+
+      // Update chart
+      stockChart.data.labels = labels;
+      stockChart.data.datasets[0].data = p10;
+      stockChart.data.datasets[1].data = p50;
+      stockChart.data.datasets[2].data = meanArr;
+      stockChart.data.datasets[3].data = p90;
+      stockChart.update();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // bindings
+      bindRangeAndNumber('daysInMonthRange', 'daysInMonth');
+      bindRangeAndNumber('initialStockRange', 'initialStock');
+      bindRangeAndNumber('prodAvgRange', 'prodAvg');
+      bindRangeAndNumber('prodStdRange', 'prodStd');
+      bindRangeAndNumber('pathsRange', 'paths');
+
+      document.getElementById('liftingSchedule').addEventListener('input', scheduleSimulation);
+      document.getElementById('historicalProd').addEventListener('input', scheduleSimulation);
+
+      document.querySelectorAll('input[name="prodMode"]').forEach(radio => {
+        radio.addEventListener('change', () => {
+          const mode = document.querySelector('input[name="prodMode"]:checked').value;
+          const histBlock = document.getElementById('prodHistoricalBlock');
+          const directBlock = document.getElementById('prodDirectBlock');
+          if (mode === 'historical') {
+            histBlock.style.display = '';
+            directBlock.style.display = 'none';
+          } else {
+            histBlock.style.display = 'none';
+            directBlock.style.display = '';
+          }
+          scheduleSimulation();
+        });
+      });
+
+      document.getElementById('runBtn').addEventListener('click', runSimulation);
+
+      initChart();
+      runSimulation(); // initial run with defaults
+    });
+  </script>
+</body>
+</html>
